@@ -57,11 +57,13 @@ class DSLSource (object):
     #--------------------------------------------------------------------------#
     @classmethod
     def FromFile (cls, filename):
+        """Create source from file if possible
+        """
         if filename.lower ().endswith ('.dsl'):
             return cls (filename)
 
     #--------------------------------------------------------------------------#
-    # Property                                                                 #
+    # Properties                                                               #
     #--------------------------------------------------------------------------#
     @property
     def Name (self):
@@ -71,11 +73,13 @@ class DSLSource (object):
 
     @property
     def Language (self):
+        """Source and destination language pair
+        """
         return (self.headers.get ('index_language', 'any'),
                 self.headers.get ('contents_language', 'any'))
 
     #--------------------------------------------------------------------------#
-    # Source                                                                   #
+    # Cards                                                                    #
     #--------------------------------------------------------------------------#
     word_regex        = re.compile (r'^[^\s]')      # beginning of the word
     word_ignore_regex = re.compile (r'\{[^}]*\}')   # ignore part of the word
@@ -297,7 +301,6 @@ class DSLSource (object):
                 #--------------------------------------------------------------#
                 yield {
                     'words': words,
-                    'head': head,
                     'body': root
                 }
 

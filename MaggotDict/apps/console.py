@@ -95,7 +95,7 @@ options:
                     with Log ('installing {}'.format (os.path.basename (arg))) as report:
                         self.Install (arg, report)
 
-                except OSError as error:
+                except Exception:
                     self.Usage ()
 
                 return
@@ -105,7 +105,7 @@ options:
                 try:
                     self.Uninstall (arg)
 
-                except OSError as error:
+                except Exception:
                     Log.Error (error)
                     self.Usage ()
 
