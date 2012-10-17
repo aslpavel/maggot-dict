@@ -34,6 +34,12 @@ class ConsoleDictApp (DictApp):
         'words'       : Color (COLOR_WHITE,   COLOR_NONE, ATTR_BOLD),
     }
 
+    ignore_names = {
+        'lang',
+        'color',
+        'root'
+    }
+
     def __init__ (self):
         DictApp.__init__ (self)
 
@@ -120,7 +126,8 @@ options:
                 Log.Warning ('Option {} has not been implemented yet'.format (opt))
                 return
 
-        word = ' '.join (args)
+        word = (' '.join (args) if sys.version_info [0] > 2 else
+                ' '.join (args).decode ('utf-8'))
         if not word:
             Log.Error ('Word is required')
             self.Usage ()
@@ -164,10 +171,7 @@ options:
         elif name == 'transcript':
             text.Write (value, self.theme.get (name))
 
-        elif name == 'color':
-            pass
-
-        elif name == 'root':
+        elif name in self.ignore_names:
             pass
 
         elif name in self.theme:
