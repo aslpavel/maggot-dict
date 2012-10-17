@@ -41,6 +41,7 @@ build () {
 #------------------------------------------------------------------------------#
 package () {
     cd $srcdir/$_gitname
+    make clean
     make DESTDIR=$pkgdir install
 }
 
