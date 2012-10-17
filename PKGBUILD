@@ -41,7 +41,7 @@ build () {
 #------------------------------------------------------------------------------#
 package () {
     cd $srcdir/$_gitname
-    make DESTDIR=$pkgdir
+    make DESTDIR=$pkgdir install
 }
 
 # vim: nu ft=sh columns=120 :

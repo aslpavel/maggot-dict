@@ -1,4 +1,8 @@
 *.pyc
 *.pyo
 __pycache__
+*.dsl
+*.mdict
+*.dict
+*.idx
 maggot-dict-cli
