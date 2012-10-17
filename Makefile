@@ -13,7 +13,7 @@ install: all
 	@install -m775 -D maggot-dict-cli \
 		$(DESTDIR)/usr/bin/maggot-dict-cli
 	@install -m664 -D scripts/maggot-dict-cli \
-		$(DESTDIR)/usr/share/bash-completion/maggot-dict-cli
+		$(DESTDIR)/usr/share/bash-completion/completions/maggot-dict-cli
 
 uninstall:
 	@test -f $(DESTDIR)/usr/bin/maggot-dict-cli && \
