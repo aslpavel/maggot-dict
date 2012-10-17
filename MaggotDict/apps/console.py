@@ -37,8 +37,11 @@ class ConsoleDictApp (DictApp):
     def __init__ (self):
         DictApp.__init__ (self)
 
-        self.console = Console (io.open (sys.stdout.fileno (), 'wb'))
-        self.dispose += self.console
+        if sys.stdout.isatty ():
+            self.console = Console (io.open (sys.stdout.fileno (), 'wb', closefd = False))
+            self.dispose += self.console
+        else:
+            self.console = PlainConsole ()
 
         self.theme = self.theme_default
 
@@ -141,7 +144,7 @@ options:
         if name == 'card':
             text.Write (ctx ['name'].center (self.console.Size () [1]), self.theme.get ('header'))
             text.Write ('\n ')
-            text.Write (' '.join (value ['words']), self.theme.get ('words'))
+            text.Write (', '.join (value ['words']), self.theme.get ('words'))
             text.Write ('\n\n')
 
             yield True
@@ -190,14 +193,29 @@ options:
         name, sep, complete = comp_line [:comp_point].partition (' ')
         complete = complete.encode ('utf-8')
 
-        words = itertools.islice (
-            itertools.takewhile (lambda word: word.startswith (complete), (word for word, _ in
-                heapq.merge (*(dct.word_index.index [complete:] for dct in self.Dicts.values ())))),
-            self.comp_default)
+        words = list (
+            itertools.islice (
+                itertools.takewhile (lambda word: word.startswith (complete), (word for word, _ in
+                    heapq.merge (*(dct.word_index.index [complete:] for dct in self.Dicts.values ())))),
+                self.comp_default))
 
-        # prefix
-        word_size = os.path.commonprefix (matches).rfind (' ') + 1
-        for word in words:
-            print (word [word_size:])
+        if words:
+            word_size = os.path.commonprefix (words).rfind (b' ') + 1
+            for word in words:
+                print (word [word_size:].decode ('utf-8'))
+
+#------------------------------------------------------------------------------#
+# Plain Console                                                                #
+#------------------------------------------------------------------------------#
+class PlainConsole (object):
+    """Minimal plain console for non tty output
+    """
+
+    def Write (self, text):
+        sys.stdout.write (text.Encode ().decode ('utf-8'))
+        sys.stdout.flush ()
+
+    def Size (self):
+        return 0, 0
 
 # vim: nu ft=python columns=120 :

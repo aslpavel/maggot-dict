@@ -9,7 +9,7 @@ maggot-dict-cli: maggot-dict-cli.py MaggotDict
 	@$(PYTHON) -m$(BOOTSTRAP) -m$< MaggotDict > $@
 	@chmod 775 $@
 
-install: clean all
+install: all
 	@install -m775 -D maggot-dict-cli \
 		$(DESTDIR)/usr/bin/maggot-dict-cli
 	@install -m664 -D scripts/maggot-dict-cli \
