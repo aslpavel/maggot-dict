@@ -229,6 +229,14 @@ class DSLSource (object):
                                 node.pop ('children')
                                 node ['value'] = ''.join (transcript_map.get (code, '?') for code in codes)
 
+                        # sound
+                        if name == 'sound':
+                            children = node.pop ('children')
+                            if len (children) == 1 and children [0]['name'] == 'text':
+                                node ['value'] = children [0]['value']
+                            else:
+                                node ['children'] = children
+
                     else:
                         child = node_create (name, value)
                         node ['children'].append (child)

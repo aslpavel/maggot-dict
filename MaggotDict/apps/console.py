@@ -37,7 +37,8 @@ class ConsoleDictApp (DictApp):
     ignore_names = {
         'lang',
         'color',
-        'root'
+        'root',
+        'sound'
     }
 
     def __init__ (self):
