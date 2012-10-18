@@ -54,3 +54,15 @@ options:
     -s        : show statistics
     -h|?      : show this help message
 ```
+
+Completion and word:
+
+![show word](screenshots/word.png "show word")
+
+Statistics:
+
+![show statistics](screenshots/stat.png "show statistics")
+
+Installation:
+
+![install dictionary](screenshots/install.png "install dictionary")
