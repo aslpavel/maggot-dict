@@ -23,7 +23,7 @@ class ConsoleDictApp (DictApp):
         'comment'     : Color (COLOR_BLACK,   COLOR_NONE, ATTR_NONE),
         'example'     : Color (COLOR_DEFAULT, COLOR_NONE, ATTR_FORCE),
         'fold'        : Color (COLOR_BLACK,   COLOR_NONE, ATTR_BOLD),
-        'header'      : Color (COLOR_WHITE,   COLOR_BLACK, ATTR_BOLD),
+        'header'      : Color (COLOR_WHITE,   COLOR_CYAN, ATTR_BOLD),
         'italic'      : Color (COLOR_NONE,    COLOR_NONE, ATTR_ITALIC),
         'link'        : Color (COLOR_MAGENTA, COLOR_NONE, ATTR_FORCE),
         'stress'      : Color (COLOR_NONE,    COLOR_NONE, ATTR_UNDERLINE),
@@ -53,22 +53,6 @@ class ConsoleDictApp (DictApp):
         self.theme = self.theme_default
 
     #--------------------------------------------------------------------------#
-    # Usage                                                                    #
-    #--------------------------------------------------------------------------#
-    def Usage (self):
-        """Print usage message
-        """
-        sys.stderr.write ('''Usage: {} [options] <word>
-options:
-    -I <file> : install dictionary
-    -U <name> : uninstall dictionary
-    -d <name> : disable dictionary
-    -s        : show statistics
-    -h|?      : show this help message
-'''.format (os.path.basename (sys.argv [0])))
-        sys.stderr.flush ()
-
-    #--------------------------------------------------------------------------#
     # Execute                                                                  #
     #--------------------------------------------------------------------------#
     def Execute (self):
@@ -77,7 +61,7 @@ options:
         # bash completion
         comp_line, comp_point = os.environ.get ('COMP_LINE'), os.environ.get ('COMP_POINT')
         if comp_line and comp_point:
-            self.Completion (comp_line, int (comp_point))
+            self.CompletionAction (comp_line, int (comp_point))
             return
 
         # parse arguments
@@ -92,8 +76,7 @@ options:
         for opt, arg in opts:
             # Statistics
             if opt == '-s':
-                for name in self.Dicts:
-                    print (name)
+                self.StatAction ()
                 return
 
             # Install
@@ -127,8 +110,32 @@ options:
                 Log.Warning ('Option {} has not been implemented yet'.format (opt))
                 return
 
-        word = (' '.join (args) if sys.version_info [0] > 2 else
-                ' '.join (args).decode ('utf-8'))
+
+        self.CardAction (' '.join (args) if sys.version_info [0] > 2 else
+                         ' '.join (args).decode ('utf-8'))
+
+    #--------------------------------------------------------------------------#
+    # Usage                                                                    #
+    #--------------------------------------------------------------------------#
+    def Usage (self):
+        """Print usage message
+        """
+        sys.stderr.write ('''Usage: {} [options] <word>
+options:
+    -I <file> : install dictionary
+    -U <name> : uninstall dictionary
+    -d <name> : disable dictionary
+    -s        : show statistics
+    -h|?      : show this help message
+'''.format (os.path.basename (sys.argv [0])))
+        sys.stderr.flush ()
+
+    #--------------------------------------------------------------------------#
+    # Actions                                                                  #
+    #--------------------------------------------------------------------------#
+    def CardAction (self, word):
+        """Show card
+        """
         if not word:
             Log.Error ('Word is required')
             self.Usage ()
@@ -140,6 +147,66 @@ options:
                 text = Text ()
                 self.Render (card, name = name, text = text)
                 self.console.Write (text)
+
+    def StatAction (self):
+        """Show statistics
+        """
+        table = [('Name', []), ('Words', []), ('Size', []), ('Active', [])]
+        rows  = 0
+
+        # fill
+        for dct in self.Dicts.values ():
+            table [0][1].append (dct.Name)
+            table [1][1].append (str (dct.Size))
+            table [2][1].append ('{:.1f}'.format (dct.store.Size / float (1 << 20)))
+            table [3][1].append ('true')
+            rows += 1
+
+        # width
+        table_width = []
+        for name, column in table:
+            width = len (name)
+            for line in column:
+                width = max (width, len (line))
+            table_width.append (width + 1)
+
+        text = Text ()
+
+        # header
+        header_color = self.theme.get ('header')
+        text.Write (' ')
+        for width, name in zip (table_width, (name for name, column in table)):
+            text.Write (name.center (width + 1), header_color)
+            text.Write (' ')
+        text.Write ('\n')
+
+        # rows
+        columns = list (column for name, column in table)
+        for row in range (rows):
+            text.Write (' ')
+            for width, column in zip (table_width, columns):
+                text.Write (column [row].rjust (width) + ' ')
+                text.Write (' ')
+            text.Write ('\n')
+
+        self.console.Write (text)
+
+    def CompletionAction (self, comp_line, comp_point):
+        """Bash completion
+        """
+        name, sep, complete = comp_line [:comp_point].partition (' ')
+        complete = complete.encode ('utf-8')
+
+        words = list (
+            itertools.islice (
+                itertools.takewhile (lambda word: word.startswith (complete), (word for word, _ in
+                    heapq.merge (*(dct.word_index.index [complete:] for dct in self.Dicts.values ())))),
+                self.comp_default))
+
+        if words:
+            word_size = os.path.commonprefix (words).rfind (b' ') + 1
+            for word in words:
+                print (word [word_size:].decode ('utf-8'))
 
     #--------------------------------------------------------------------------#
     # Render                                                                   #
@@ -188,26 +255,6 @@ options:
             return
 
         yield True
-
-    #--------------------------------------------------------------------------#
-    # Completion                                                               #
-    #--------------------------------------------------------------------------#
-    def Completion (self, comp_line, comp_point):
-        """Bash completion
-        """
-        name, sep, complete = comp_line [:comp_point].partition (' ')
-        complete = complete.encode ('utf-8')
-
-        words = list (
-            itertools.islice (
-                itertools.takewhile (lambda word: word.startswith (complete), (word for word, _ in
-                    heapq.merge (*(dct.word_index.index [complete:] for dct in self.Dicts.values ())))),
-                self.comp_default))
-
-        if words:
-            word_size = os.path.commonprefix (words).rfind (b' ') + 1
-            for word in words:
-                print (word [word_size:].decode ('utf-8'))
 
 #------------------------------------------------------------------------------#
 # Plain Console                                                                #

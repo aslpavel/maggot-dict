@@ -64,12 +64,13 @@ class Dictionary (object):
                 src_size, src_offset = float (src_stream.tell ()), 0
                 src_stream.seek (0)
                 with open (dst, 'wb') as dst_stream:
-                    data = src_stream.read (1 << 16)
-                    src_offset += len (data)
-                    report_changed (src_size / src_offset)
-                    if not data:
-                        return cls (dst)
-                    dst_stream.write (data)
+                    while True:
+                        data = src_stream.read (1 << 16)
+                        src_offset += len (data)
+                        report_changed (src_size / src_offset)
+                        if not data:
+                            return cls (dst)
+                        dst_stream.write (data)
 
         # compile
         source = Source (src)
