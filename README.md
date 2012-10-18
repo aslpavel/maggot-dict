@@ -57,12 +57,12 @@ options:
 
 Completion and word:
 
-![show word](screenshots/word.png "show word")
+![show word](https://raw.github.com/aslpavel/maggot-dict/master/screenshots/word.png "show word")
 
 Statistics:
 
-![show statistics](screenshots/stat.png "show statistics")
+![show statistics](https://raw.github.com/aslpavel/maggot-dict/master/screenshots/stat.png "show statistics")
 
 Installation:
 
-![install dictionary](screenshots/install.png "install dictionary")
+![install dictionary](https://raw.github.com/aslpavel/maggot-dict/master/screenshots/install.png "install dictionary")
