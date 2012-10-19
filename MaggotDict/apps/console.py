@@ -18,6 +18,8 @@ class ConsoleDictApp (DictApp):
     """Console dictionary application
     """
     comp_default  = 50
+    hist_default  = 50
+
     theme_default = {
         'bold'        : Color (COLOR_MAGENTA, COLOR_NONE, ATTR_BOLD | ATTR_FORCE),
         'comment'     : Color (COLOR_BLACK,   COLOR_NONE, ATTR_NONE),
@@ -66,7 +68,7 @@ class ConsoleDictApp (DictApp):
 
         # parse arguments
         try:
-            opts, args = getopt.getopt (sys.argv [1:], "?hsI:U:H:d:")
+            opts, args = getopt.getopt (sys.argv [1:], "?SHWI:U:D:")
 
         except getopt.GetoptError as error:
             Log.Error (str (error))
@@ -75,7 +77,7 @@ class ConsoleDictApp (DictApp):
 
         for opt, arg in opts:
             # Statistics
-            if opt == '-s':
+            if opt == '-S':
                 self.StatAction ()
                 return
 
@@ -100,19 +102,55 @@ class ConsoleDictApp (DictApp):
                 self.Uninstall (arg)
                 return
 
+            # History
+            elif opt == '-H':
+                try:
+                    size = int (args [0]) if args else self.hist_default
+                except ValueError:
+                    Log.Error ('-H requires positive integer argument: {}'.format (arg))
+                    self.Usage ()
+                    return
+
+                self.HistoryAction (size)
+                return
+
             # Disable dictionary
-            elif opt == '-d':
+            elif opt == '-D':
                 dct = self.Dicts [arg]
                 if dct is None:
                     Log.Error ('No such dictionary: \'{}\''.format (arg))
                     return
 
                 dct.config.disabled = not dct.config.disabled
-                Log.Info ('{} is now: {}'.format (dct.Name, 'disabled' if dct.config.disabled else 'enabled'))
+                self.StatAction ()
+                return
+
+            elif opt == '-W':
+                if len (args) < 2:
+                    Log.Error ('-W requires both arguments')
+                    self.Usage ()
+                    return
+
+                try:
+                    dct_id = args [0]
+                    dct_weight = int (args [1])
+                except ValueError:
+                    Log.Error ('-W weight must be an integer: {}'.format (args [1]))
+                    self.Usage ()
+                    return
+
+                dct = self.Dicts [dct_id]
+                if dct is None:
+                    Log.Error ('No such dictionary: \'{}\''.format (dct_id))
+                    return
+
+                dct.config.weight = dct_weight
+                self.Dicts.by_index.sort (key = lambda dct: (-dct.config.weight, dct.Name))
+                self.StatAction ()
                 return
 
             # Help
-            elif opt in ('-h', '-?'):
+            elif opt == '-?':
                 self.Usage ()
                 return
 
@@ -130,15 +168,18 @@ class ConsoleDictApp (DictApp):
     def Usage (self):
         """Print usage message
         """
-        sys.stderr.write ('''Usage: {} [options] <word>
+        sys.stderr.write ('''Usage: {command} [options] <word>
 options:
-    -I <file>  : install dictionary
-    -U <name>  : uninstall dictionary (by name or index)
-    -H <count> : show history
-    -d <name>  : toggle disable dictionary (by name or index)
-    -s         : show statistics
-    -h|?       : show this help message
-'''.format (os.path.basename (sys.argv [0])))
+    -I <file>         : install dictionary
+    -U <dct>          : uninstall dictionary      (dct is name or index)
+    -D <dct>          : toggle disable dictionary (dct is name or index)
+    -W <dct> <weight> : change dictionary weight  (dct is name or index)
+    -H [count]        : show history              (default: {hist_default})
+    -S                : show statistics
+    -?                : show this help message
+'''.format (
+    command = os.path.basename (sys.argv [0]),
+    hist_default = self.hist_default))
         sys.stderr.flush ()
 
     #--------------------------------------------------------------------------#
@@ -172,21 +213,22 @@ options:
     def StatAction (self):
         """Show statistics
         """
-        table = [('N', []), ('Name', []), ('Words', []), ('Size', []), ('Disabled', [])]
+        table = [('N', []), ('Name', []), ('Words', []), ('Size', []), ('Weight', []), ('Disabled', [])]
         for index, dct in enumerate (self.Dicts):
             table [0][1].append (str (index))
             table [1][1].append (dct.Name)
             table [2][1].append (str (dct.Size))
             table [3][1].append ('{:.1f}'.format (dct.store.Size / float (1 << 20)))
-            table [4][1].append ('True' if dct.config.disabled else 'False')
+            table [4][1].append (str (dct.config.weight))
+            table [5][1].append ('True' if dct.config.disabled else 'False')
 
         self.RenderTable (table)
 
-    def HistAction (self, count):
+    def HistoryAction (self, size):
         """Show history
         """
         table = [('Word', []), ('Shows', [])]
-        for word, count in itertools.islice (0, count):
+        for word, count in itertools.islice (self.History, size):
             table [0][1].append (word)
             table [1][1].append (str (count))
 
@@ -257,7 +299,7 @@ options:
 
         yield True
 
-    def RenderTalbe (self, table):
+    def RenderTable (self, table):
         """Render table
         """
         if not table:
@@ -291,7 +333,6 @@ options:
             text.Write ('\n')
 
         self.console.Write (text)
-
 
 #------------------------------------------------------------------------------#
 # Plain Console                                                                #

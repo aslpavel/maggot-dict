@@ -59,7 +59,7 @@ class DictApp (object):
                 dct_config = self.config.dcts.Get (dct.Name, None)
                 if dct_config is None:
                     self.config.dcts [dct.Name] = {
-                        'order': len (self.config.dcts),
+                        'weight': 0,
                         'disabled': False
                     }
                     dct_config = self.config.dcts [dct.Name]
@@ -173,13 +173,15 @@ class Dicts (object):
     """Dictionaries set
     """
     def __init__ (self, dcts):
-        self.by_index = sorted (dcts, key = lambda dct: dct.config.order)
+        self.by_index = sorted (dcts, key = lambda dct: (-dct.config.weight, dct.Name))
         self.by_name = dict ((dct.Name, dct) for dct in self.by_index)
 
     def __iter__ (self):
         return iter (self.by_index)
 
     def __getitem__ (self, id):
+        """Get dictionary by id
+        """
         try:
             index = int (id)
             if 0 <= index < len (self.by_index):
@@ -187,8 +189,6 @@ class Dicts (object):
         except ValueError: pass
         return self.by_name.get (id)
 
-    def __len__ (self):
-        return len (self.by_index)
 
     def Pop (self, id, default = None):
         dct = self [id]
@@ -199,6 +199,9 @@ class Dicts (object):
         self.by_name.pop (dct.Name)
 
         return dct
+
+    def __len__ (self):
+        return len (self.by_index)
 
     def Enabled (self):
         return iter (dct for dct in self.by_index if not dct.config.disabled)
@@ -214,14 +217,16 @@ class History (object):
 
     def __init__ (self, store):
         self.by_word = store.Mapping (self.by_word_name, key_type = 'bytes', value_type = 'struct:>Q')
-        self.by_count = store.Mapping (self.by_count_name, key_type = 'struct:>q', value_type = 'bytes')
+        self.by_count = store.Mapping (self.by_count_name, key_type = 'pickle:2', value_type = 'struct:b')
 
     def __iadd__ (self, word):
         word = word.encode ('utf-8')
-        count = self.by_word.get (word, 0) + 1
 
-        self.by_word [word] = count
-        self.by_count [-count] = word
+        count = self.by_word.get (word, 0)
+        self.by_word [word] = count + 1
+
+        self.by_count.pop ((-count, word))
+        self.by_count [(-count - 1, word)] = 0
 
         return self
 
@@ -229,6 +234,6 @@ class History (object):
         return self.by_word.get (word.encode ('utf-8'), 0)
 
     def __iter__ (self):
-        return iter ((word.decode ('utf-8'), -count) for word, count in self.by_count.items ())
+        return ((word.decode ('utf-8'), -count) for count, word in self.by_count)
 
 # vim: nu ft=python columns=120 :
