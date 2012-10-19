@@ -259,7 +259,6 @@ class CardRange (object):
             card = self.dct.card_load (entry [0])
             yield card ['words'][entry [1]], card
 
-
     def __len__ (self):
         """Size interface
         """

@@ -6,6 +6,7 @@ from ..xdg import xdg_data_home
 from ..dictionary import Dictionary
 
 from ..pretzel.store import FileStore
+from ..pretzel.config import StoreConfig
 from ..pretzel.disposable import CompositeDisposable
 
 __all__ = ('DictApp', 'DictAppError',)
@@ -24,7 +25,8 @@ class DictApp (object):
     dcts_path  = os.path.join (root_path, 'dicts')
     state_path = os.path.join (root_path, 'state.store')
 
-    dct_suffix = '.mdict'
+    dct_suffix  = '.mdict'
+    config_name = b'mdict::config'
 
     def __init__ (self):
         self.dispose = CompositeDisposable ()
@@ -37,13 +39,35 @@ class DictApp (object):
         self.state = FileStore (self.state_path, 'c')
         self.dispose += self.state
 
+        # configuration
+        self.config = StoreConfig (self.state, self.config_name, lambda: {
+            'dcts': {},
+        })
+        self.dispose += self.config
+
+        # history
+        self.History = History (self.state)
+
         # dictionaries
-        self.dcts = {}
+        dcts = []
         for name in os.listdir (self.dcts_path):
             if name.endswith (self.dct_suffix):
                 dct = Dictionary (os.path.join (self.dcts_path, name))
                 self.dispose += dct
-                self.dcts [dct.Name] = dct
+
+                # configuration
+                dct_config = self.config.dcts.Get (dct.Name, None)
+                if dct_config is None:
+                    self.config.dcts [dct.Name] = {
+                        'order': len (self.config.dcts),
+                        'disabled': False
+                    }
+                    dct_config = self.config.dcts [dct.Name]
+
+                dct.config = dct_config
+                dcts.append (dct)
+
+        self.Dicts = Dicts (dcts)
 
     #--------------------------------------------------------------------------#
     # Execute                                                                  #
@@ -57,15 +81,6 @@ class DictApp (object):
         """Execute application
         """
         pass
-
-    #--------------------------------------------------------------------------#
-    # Properties                                                               #
-    #--------------------------------------------------------------------------#
-    @property
-    def Dicts (self):
-        """Available dictionaries
-        """
-        return self.dcts
 
     #--------------------------------------------------------------------------#
     # Render                                                                   #
@@ -125,13 +140,14 @@ class DictApp (object):
             if os.path.exists (tmp_path):
                 os.unlink (tmp_path)
 
-    def Uninstall (self, name):
+    def Uninstall (self, id):
         """Remove dictionary
         """
-        dct = self.dcts.pop (name, None)
+        dct = self.dcts.Pop (id)
         if dct is None:
-            raise DictAppError ('No such dictionary: {}'.format (name))
+            raise DictAppError ('No such dictionary: {}'.format (id))
 
+        del self.config.dcts [dct.Name]
         dct.Dispose ()
         os.unlink (dct.File)
 
@@ -150,5 +166,69 @@ class DictApp (object):
         self.Dispose ()
         return False
 
+#------------------------------------------------------------------------------#
+# Dictionaries set                                                             #
+#------------------------------------------------------------------------------#
+class Dicts (object):
+    """Dictionaries set
+    """
+    def __init__ (self, dcts):
+        self.by_index = sorted (dcts, key = lambda dct: dct.config.order)
+        self.by_name = dict ((dct.Name, dct) for dct in self.by_index)
+
+    def __iter__ (self):
+        return iter (self.by_index)
+
+    def __getitem__ (self, id):
+        try:
+            index = int (id)
+            if 0 <= index < len (self.by_index):
+                return self.by_index [index]
+        except ValueError: pass
+        return self.by_name.get (id)
+
+    def __len__ (self):
+        return len (self.by_index)
+
+    def Pop (self, id, default = None):
+        dct = self [id]
+        if dct is None:
+            return default
+
+        self.by_index.remove (dct)
+        self.by_name.pop (dct.Name)
+
+        return dct
+
+    def Enabled (self):
+        return iter (dct for dct in self.by_index if not dct.config.disabled)
+
+#------------------------------------------------------------------------------#
+# History                                                                      #
+#------------------------------------------------------------------------------#
+class History (object):
+    """Lookup history
+    """
+    by_word_name = b'mdict::hist_word'
+    by_count_name = b'mdict::hist_count'
+
+    def __init__ (self, store):
+        self.by_word = store.Mapping (self.by_word_name, key_type = 'bytes', value_type = 'struct:>Q')
+        self.by_count = store.Mapping (self.by_count_name, key_type = 'struct:>q', value_type = 'bytes')
+
+    def __iadd__ (self, word):
+        word = word.encode ('utf-8')
+        count = self.by_word.get (word, 0) + 1
+
+        self.by_word [word] = count
+        self.by_count [-count] = word
+
+        return self
+
+    def __getitem__ (self, word):
+        return self.by_word.get (word.encode ('utf-8'), 0)
+
+    def __iter__ (self):
+        return iter ((word.decode ('utf-8'), -count) for word, count in self.by_count.items ())
 
 # vim: nu ft=python columns=120 :

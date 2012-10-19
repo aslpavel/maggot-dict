@@ -66,7 +66,7 @@ class ConsoleDictApp (DictApp):
 
         # parse arguments
         try:
-            opts, args = getopt.getopt (sys.argv [1:], "?hsI:U:d:")
+            opts, args = getopt.getopt (sys.argv [1:], "?hsI:U:H:d:")
 
         except getopt.GetoptError as error:
             Log.Error (str (error))
@@ -92,13 +92,23 @@ class ConsoleDictApp (DictApp):
 
             # Uninstall
             elif opt == '-U':
-                try:
-                    self.Uninstall (arg)
+                dct = self.Dicts [arg]
+                if dct is None:
+                    Log.Error ('No such dictionary: \'{}\''.format (arg))
+                    return
 
-                except Exception:
-                    Log.Error (error)
-                    self.Usage ()
+                self.Uninstall (arg)
+                return
 
+            # Disable dictionary
+            elif opt == '-d':
+                dct = self.Dicts [arg]
+                if dct is None:
+                    Log.Error ('No such dictionary: \'{}\''.format (arg))
+                    return
+
+                dct.config.disabled = not dct.config.disabled
+                Log.Info ('{} is now: {}'.format (dct.Name, 'disabled' if dct.config.disabled else 'enabled'))
                 return
 
             # Help
@@ -122,11 +132,12 @@ class ConsoleDictApp (DictApp):
         """
         sys.stderr.write ('''Usage: {} [options] <word>
 options:
-    -I <file> : install dictionary
-    -U <name> : uninstall dictionary
-    -d <name> : disable dictionary
-    -s        : show statistics
-    -h|?      : show this help message
+    -I <file>  : install dictionary
+    -U <name>  : uninstall dictionary (by name or index)
+    -H <count> : show history
+    -d <name>  : toggle disable dictionary (by name or index)
+    -s         : show statistics
+    -h|?       : show this help message
 '''.format (os.path.basename (sys.argv [0])))
         sys.stderr.flush ()
 
@@ -141,55 +152,45 @@ options:
             self.Usage ()
             return
 
-        for name, dct in self.Dicts.items ():
+        found = False
+        for dct in self.Dicts.Enabled ():
+            if dct.config.disabled:
+                continue
+
             card_word, card = dct.ByWord [word]
             if card:
+                found = True
                 text = Text ()
-                self.Render (card, name = name, text = text)
+                self.Render (card, name = dct.Name, text = text)
                 self.console.Write (text)
+
+        if found:
+            self.History += word
+        else:
+            Log.Warning ('Word was not found: {}'.format (word))
 
     def StatAction (self):
         """Show statistics
         """
-        table = [('Name', []), ('Words', []), ('Size', []), ('Active', [])]
-        rows  = 0
+        table = [('N', []), ('Name', []), ('Words', []), ('Size', []), ('Disabled', [])]
+        for index, dct in enumerate (self.Dicts):
+            table [0][1].append (str (index))
+            table [1][1].append (dct.Name)
+            table [2][1].append (str (dct.Size))
+            table [3][1].append ('{:.1f}'.format (dct.store.Size / float (1 << 20)))
+            table [4][1].append ('True' if dct.config.disabled else 'False')
 
-        # fill
-        for dct in self.Dicts.values ():
-            table [0][1].append (dct.Name)
-            table [1][1].append (str (dct.Size))
-            table [2][1].append ('{:.1f}'.format (dct.store.Size / float (1 << 20)))
-            table [3][1].append ('true')
-            rows += 1
+        self.RenderTable (table)
 
-        # width
-        table_width = []
-        for name, column in table:
-            width = len (name)
-            for line in column:
-                width = max (width, len (line))
-            table_width.append (width + 1)
+    def HistAction (self, count):
+        """Show history
+        """
+        table = [('Word', []), ('Shows', [])]
+        for word, count in itertools.islice (0, count):
+            table [0][1].append (word)
+            table [1][1].append (str (count))
 
-        text = Text ()
-
-        # header
-        header_color = self.theme.get ('header')
-        text.Write (' ')
-        for width, name in zip (table_width, (name for name, column in table)):
-            text.Write (name.center (width + 1), header_color)
-            text.Write (' ')
-        text.Write ('\n')
-
-        # rows
-        columns = list (column for name, column in table)
-        for row in range (rows):
-            text.Write (' ')
-            for width, column in zip (table_width, columns):
-                text.Write (column [row].rjust (width) + ' ')
-                text.Write (' ')
-            text.Write ('\n')
-
-        self.console.Write (text)
+        self.RenderTable (table)
 
     def CompletionAction (self, comp_line, comp_point):
         """Bash completion
@@ -200,7 +201,7 @@ options:
         words = list (
             itertools.islice (
                 itertools.takewhile (lambda word: word.startswith (complete), (word for word, _ in
-                    heapq.merge (*(dct.word_index.index [complete:] for dct in self.Dicts.values ())))),
+                    heapq.merge (*(dct.word_index.index [complete:] for dct in self.Dicts.Enabled ())))),
                 self.comp_default))
 
         if words:
@@ -255,6 +256,42 @@ options:
             return
 
         yield True
+
+    def RenderTalbe (self, table):
+        """Render table
+        """
+        if not table:
+            return
+
+        # width
+        table_width = []
+        for name, column in table:
+            width = len (name)
+            for line in column:
+                width = max (width, len (line))
+            table_width.append (width + 1)
+
+        text = Text ()
+
+        # header
+        header_color = self.theme.get ('header')
+        text.Write (' ')
+        for width, name in zip (table_width, (name for name, column in table)):
+            text.Write (name.center (width + 1), header_color)
+            text.Write (' ')
+        text.Write ('\n')
+
+        # rows
+        columns = list (column for name, column in table)
+        for row in range (len (table [0][1])):
+            text.Write (' ')
+            for width, column in zip (table_width, columns):
+                text.Write (column [row].rjust (width) + ' ')
+                text.Write (' ')
+            text.Write ('\n')
+
+        self.console.Write (text)
+
 
 #------------------------------------------------------------------------------#
 # Plain Console                                                                #
