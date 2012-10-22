@@ -69,7 +69,7 @@ class ConsoleDictApp (DictApp):
 
         # parse arguments
         try:
-            opts, args = getopt.getopt (sys.argv [1:], "?hSHWI:U:D:")
+            opts, args = getopt.getopt (sys.argv [1:], "?hSHWIU:D:")
 
         except getopt.GetoptError as error:
             Log.Error (str (error))
@@ -84,13 +84,16 @@ class ConsoleDictApp (DictApp):
 
             # Install
             elif opt == '-I':
-                try:
-                    with Log ('installing {}'.format (os.path.basename (arg))) as report:
-                        self.Install (arg, report)
-
-                except Exception:
+                if not args:
+                    Log.Error ('-I at least one dictionary is required')
                     self.Usage ()
-                    raise
+                    return
+
+                try:
+                    for arg in args:
+                        with Log ('installing {}'.format (os.path.basename (arg))) as report:
+                            self.Install (arg, report)
+                except Exception: pass
 
                 return
 
@@ -172,7 +175,7 @@ class ConsoleDictApp (DictApp):
         """
         sys.stderr.write ('''Usage: {command} [options] <word>
 options:
-    -I <file>         : install dictionary
+    -I <files>        : install dictionaries
     -U <dct>          : uninstall dictionary      (dct is name or index)
     -D <dct>          : toggle disable dictionary (dct is name or index)
     -W <dct> <weight> : change dictionary weight  (dct is name or index)

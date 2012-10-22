@@ -132,7 +132,6 @@ class Dictionary (object):
             number_index.Dispose ()
 
             # info
-            print (number_index.SizeOnStore, word_index.SizeOnStore)
             store.SaveByName (cls.info_name, json.dumps ({
                 'name'              : source.Name,
                 'language'          : source.Language,
