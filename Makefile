@@ -12,14 +12,14 @@ maggot-dict-cli: maggot-dict-cli.py MaggotDict
 install: all
 	@install -m775 -D maggot-dict-cli \
 		$(DESTDIR)/usr/bin/maggot-dict-cli
-	@install -m775 -D maggot-dict-cli.sh \
-		$(DESTDIR)/etc/profile.d/maggot-dict-cli.sh
+	@install -m775 -D maggot-dict-cli.completion \
+		$(DESTDIR)/usr/share/bash-completion/completions/maggot-dict-cli
 
 uninstall:
 	@test -f $(DESTDIR)/usr/bin/maggot-dict-cli && \
 		  rm $(DESTDIR)/usr/bin/maggot-dict-cli || true
-	@test -f $(DESTDIR)/etc/profile.d/maggot-dict-cli.sh && \
-		  rm $(DESTDIR)/etc/profile.d/maggot-dict-cli.sh || true
+	@test -f $(DESTDIR)/usr/share/bash-completion/completions/maggot-dict-cli && \
+		  rm $(DESTDIR)/usr/share/bash-completion/completions/maggot-dict-cli || true
 
 clean:
 	@test -f maggot-dict-cli && rm maggot-dict-cli || true

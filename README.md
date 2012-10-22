@@ -48,11 +48,13 @@ Usage:
 ```
 Usage: maggot-dict-cli [options] <word>
 options:
-    -I <file> : install dictionary
-    -U <name> : uninstall dictionary
-    -d <name> : disable dictionary
-    -s        : show statistics
-    -h|?      : show this help message
+    -I <files>        : install dictionaries
+    -U <dct>          : uninstall dictionary      (dct is name or index)
+    -D <dct>          : toggle disable dictionary (dct is name or index)
+    -W <dct> <weight> : change dictionary weight  (dct is name or index)
+    -H [count]        : show history              (default: 50)
+    -S                : show statistics
+    -?                : show this help message
 ```
 
 Completion and word:
@@ -66,3 +68,7 @@ Statistics:
 Installation:
 
 ![install dictionary](https://raw.github.com/aslpavel/maggot-dict/master/screenshots/install.png "install dictionary")
+
+History:
+
+![history](https://raw.github.com/aslpavel/maggot-dict/master/screenshots/hist.png "history")
