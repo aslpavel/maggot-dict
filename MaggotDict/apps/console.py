@@ -252,6 +252,7 @@ options:
         """
         name, sep, complete = comp_line [:comp_point].partition (' ')
         complete = complete.encode ('utf-8')
+        complete_size = complete.rfind (b' ') + 1
 
         words = list (
             itertools.islice (
@@ -260,9 +261,8 @@ options:
                 self.comp_default))
 
         if words:
-            word_size = os.path.commonprefix (words).rfind (b' ') + 1
             for word in words:
-                print (word [word_size:].decode ('utf-8'))
+                print (word [complete_size:].decode ('utf-8'))
 
     #--------------------------------------------------------------------------#
     # Render                                                                   #
