@@ -46,7 +46,7 @@ class DictApp (object):
         self.dispose += self.config
 
         # history
-        self.History = History (self.state)
+        self.hist = History (self.state)
 
         # dictionaries
         dcts = []
@@ -67,7 +67,22 @@ class DictApp (object):
                 dct.config = dct_config
                 dcts.append (dct)
 
-        self.Dicts = Dicts (dcts)
+        self.dcts = Dicts (dcts)
+
+    #--------------------------------------------------------------------------#
+    # Properties                                                               #
+    #--------------------------------------------------------------------------#
+    @property
+    def Dicts (self):
+        """Dictionaries
+        """
+        return self.dcts
+
+    @property
+    def History (self):
+        """History
+        """
+        return self.hist
 
     #--------------------------------------------------------------------------#
     # Execute                                                                  #
@@ -133,7 +148,13 @@ class DictApp (object):
             dct_path = os.path.join (self.dcts_path, '{}{}'.format (dct.Name, self.dct_suffix))
             os.rename (tmp_path, dct_path)
 
-            self.dcts [dct.Name] = dct
+            self.config.dcts [dct.Name] = {
+                'weight': 0,
+                'disabled': False
+            }
+            dct.config = self.config.dcts [dct.Name]
+
+            self.dcts.Add (dct)
             self.dispose += dct
 
         finally:
@@ -172,8 +193,10 @@ class DictApp (object):
 class Dicts (object):
     """Dictionaries set
     """
+    by_index_key = lambda self, dct: (-dct.config.weight, dct.Name)
+
     def __init__ (self, dcts):
-        self.by_index = sorted (dcts, key = lambda dct: (-dct.config.weight, dct.Name))
+        self.by_index = sorted (dcts, key = self.by_index_key)
         self.by_name = dict ((dct.Name, dct) for dct in self.by_index)
 
     def __iter__ (self):
@@ -189,7 +212,6 @@ class Dicts (object):
         except ValueError: pass
         return self.by_name.get (id)
 
-
     def Pop (self, id, default = None):
         dct = self [id]
         if dct is None:
@@ -199,6 +221,11 @@ class Dicts (object):
         self.by_name.pop (dct.Name)
 
         return dct
+
+    def Add (self, dct):
+        self.by_index.append (dct)
+        self.by_index.sort (key = self.by_index_key)
+        self.by_name [dct.Name] = dct
 
     def __len__ (self):
         return len (self.by_index)
@@ -216,24 +243,20 @@ class History (object):
     by_count_name = b'mdict::hist_count'
 
     def __init__ (self, store):
-        self.by_word = store.Mapping (self.by_word_name, key_type = 'bytes', value_type = 'struct:>Q')
-        self.by_count = store.Mapping (self.by_count_name, key_type = 'pickle:2', value_type = 'struct:b')
+        self.by_word = store.Mapping (self.by_word_name, key_type = 'json', value_type = 'struct:>Q')
+        self.by_count = store.Mapping (self.by_count_name, key_type = 'json', value_type = 'struct:b')
 
-    def __iadd__ (self, word):
-        word = word.encode ('utf-8')
-
+    def WordAdd (self, word):
         count = self.by_word.get (word, 0)
         self.by_word [word] = count + 1
 
-        self.by_count.pop ((-count, word))
-        self.by_count [(-count - 1, word)] = 0
+        self.by_count.pop ([-count, word])
+        self.by_count [[-count - 1, word]] = 0
 
-        return self
-
-    def __getitem__ (self, word):
-        return self.by_word.get (word.encode ('utf-8'), 0)
+    def WordGet (self, word):
+        return self.by_word.get (word, 0)
 
     def __iter__ (self):
-        return ((word.decode ('utf-8'), -count) for count, word in self.by_count)
+        return ((word, -count) for count, word in self.by_count)
 
 # vim: nu ft=python columns=120 :

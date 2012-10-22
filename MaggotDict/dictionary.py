@@ -39,6 +39,9 @@ class Dictionary (object):
         self.name = info ['name']
         self.size = info ['size']
         self.language = info ['language']
+        self.data_size = info ['data_size']
+        self.number_index_size = info ['number_index_size']
+        self.word_index_size = info ['word_index_size']
 
     #--------------------------------------------------------------------------#
     # Factory                                                                  #
@@ -102,11 +105,13 @@ class Dictionary (object):
             number_index = store.Mapping (cls.number_index_name, key_type = 'struct:>I', value_type = 'struct:>QH')
 
             cards_count, cards_total = 0, len (cards)
+            data_size = 0
             for card_desc, numbers in cards:
                 numbers.sort ()
                 card = card_load (card_desc)
                 card ['numbers'] = numbers
-                card_desc = card_save (card,card_desc)
+                card_desc = card_save (card, card_desc)
+                data_size += (1 << store.desc_unpack (card_desc) [2])
 
                 # word index
                 for index, word in enumerate (card ['words']):
@@ -122,11 +127,19 @@ class Dictionary (object):
 
             report_changed (1)
 
+            # flush indexes (otherwise on store size will be inaccurate)
+            word_index.Dispose ()
+            number_index.Dispose ()
+
             # info
+            print (number_index.SizeOnStore, word_index.SizeOnStore)
             store.SaveByName (cls.info_name, json.dumps ({
-                'name'    : source.Name,
-                'language': source.Language,
-                'size'    : next (number_next),
+                'name'              : source.Name,
+                'language'          : source.Language,
+                'size'              : next (number_next),
+                'data_size'         : data_size,
+                'number_index_size' : number_index.SizeOnStore,
+                'word_index_size'   : word_index.SizeOnStore,
             }).encode ('utf-8'))
 
         return cls (dst)
@@ -168,6 +181,12 @@ class Dictionary (object):
         """Size of the dictionary
         """
         return self.size
+
+    @property
+    def SizeOnStore (self):
+        """Size occupied on store
+        """
+        return self.data_size, self.word_index_size, self.number_index_size
 
     @property
     def File (self):

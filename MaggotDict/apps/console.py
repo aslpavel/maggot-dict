@@ -40,7 +40,8 @@ class ConsoleDictApp (DictApp):
         'lang',
         'color',
         'root',
-        'sound'
+        'sound',
+        '!trs'
     }
 
     def __init__ (self):
@@ -68,7 +69,7 @@ class ConsoleDictApp (DictApp):
 
         # parse arguments
         try:
-            opts, args = getopt.getopt (sys.argv [1:], "?SHWI:U:D:")
+            opts, args = getopt.getopt (sys.argv [1:], "?hSHWI:U:D:")
 
         except getopt.GetoptError as error:
             Log.Error (str (error))
@@ -89,6 +90,7 @@ class ConsoleDictApp (DictApp):
 
                 except Exception:
                     self.Usage ()
+                    raise
 
                 return
 
@@ -150,7 +152,7 @@ class ConsoleDictApp (DictApp):
                 return
 
             # Help
-            elif opt == '-?':
+            elif opt in ('-?', '-h'):
                 self.Usage ()
                 return
 
@@ -206,21 +208,29 @@ options:
                 self.console.Write (text)
 
         if found:
-            self.History += word
+            self.History.WordAdd (word)
         else:
             Log.Warning ('Word was not found: {}'.format (word))
 
     def StatAction (self):
         """Show statistics
         """
-        table = [('N', []), ('Name', []), ('Words', []), ('Size', []), ('Weight', []), ('Disabled', [])]
+        table = [
+            ('N',       []), # index
+            ('Name',    []), # dictionary name
+            ('Words',   []), # words in dictionary
+            ('Weight',  []),
+            ('Disabled',[]),
+            ('Size',    []),
+        ]
+
         for index, dct in enumerate (self.Dicts):
             table [0][1].append (str (index))
             table [1][1].append (dct.Name)
             table [2][1].append (str (dct.Size))
-            table [3][1].append ('{:.1f}'.format (dct.store.Size / float (1 << 20)))
-            table [4][1].append (str (dct.config.weight))
-            table [5][1].append ('True' if dct.config.disabled else 'False')
+            table [3][1].append (str (dct.config.weight))
+            table [4][1].append ('True' if dct.config.disabled else 'False')
+            table [5][1].append ('{:.1f} {:.1f} {:.1f}'.format (*(size / float (1 << 20) for size in dct.SizeOnStore)))
 
         self.RenderTable (table)
 
