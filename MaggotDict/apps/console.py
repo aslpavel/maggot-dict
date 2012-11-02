@@ -4,11 +4,17 @@ import os
 import sys
 import getopt
 import heapq
+import json
 import itertools
 
 from .app import DictApp
 from ..pretzel.console import *
 from ..pretzel.log import Log
+
+if sys.version_info [0] > 2:
+    PY2, PY3 = False, True
+else:
+    PY2, PY3 = True, False
 
 __all__ = ('ConsoleDictApp',)
 #------------------------------------------------------------------------------#
@@ -18,7 +24,7 @@ class ConsoleDictApp (DictApp):
     """Console dictionary application
     """
     comp_default  = 50
-    hist_default  = 50
+    hist_default  = 30
 
     theme_default = {
         'bold'        : Color (COLOR_MAGENTA, COLOR_NONE, ATTR_BOLD | ATTR_FORCE),
@@ -69,7 +75,7 @@ class ConsoleDictApp (DictApp):
 
         # parse arguments
         try:
-            opts, args = getopt.getopt (sys.argv [1:], "?hSHWIU:D:")
+            opts, args = getopt.getopt (sys.argv [1:], "?hSHWIU:D:d")
 
         except getopt.GetoptError as error:
             Log.Error (str (error))
@@ -130,6 +136,7 @@ class ConsoleDictApp (DictApp):
                 self.StatAction ()
                 return
 
+            # Change dictionary weight
             elif opt == '-W':
                 if len (args) < 2:
                     Log.Error ('-W requires both arguments')
@@ -139,6 +146,7 @@ class ConsoleDictApp (DictApp):
                 try:
                     dct_id = args [0]
                     dct_weight = int (args [1])
+
                 except ValueError:
                     Log.Error ('-W weight must be an integer: {}'.format (args [1]))
                     self.Usage ()
@@ -154,6 +162,27 @@ class ConsoleDictApp (DictApp):
                 self.StatAction ()
                 return
 
+            # Dump card
+            elif opt == '-d':
+                if not args:
+                    Log.Error ('-d requires word argument')
+                    self.Usage ()
+                    return
+
+                dcts = []
+                if len (args) > 1:
+                    dct = self.Dicts [args [1]]
+                    if dct is None:
+                        Log.Error ('No such dictionary : \'{}\''.format (args [0]))
+                        return
+                    dcts.append (dct)
+
+                else:
+                    dcts.extend (self.Dicts)
+
+                self.DumpAction (args [0] if PY3 else args [0].decode ('utf-8'), dcts)
+                return
+
             # Help
             elif opt in ('-?', '-h'):
                 self.Usage ()
@@ -164,8 +193,7 @@ class ConsoleDictApp (DictApp):
                 return
 
 
-        self.CardAction (' '.join (args) if sys.version_info [0] > 2 else
-                         ' '.join (args).decode ('utf-8'))
+        self.CardAction (' '.join (args) if PY3 else ' '.join (args).decode ('utf-8'))
 
     #--------------------------------------------------------------------------#
     # Usage                                                                    #
@@ -179,9 +207,10 @@ options:
     -U <dct>          : uninstall dictionary      (dct is name or index)
     -D <dct>          : toggle disable dictionary (dct is name or index)
     -W <dct> <weight> : change dictionary weight  (dct is name or index)
+    -d <word> [dct]   : dump content of the card  (dct is name or index)
     -H [count]        : show history              (default: {hist_default})
     -S                : show statistics
-    -?                : show this help message
+    -?|h              : show this help message
 '''.format (
     command = os.path.basename (sys.argv [0]),
     hist_default = self.hist_default))
@@ -242,7 +271,7 @@ options:
         """
         table = [('Word', []), ('Shows', [])]
         for word, count in itertools.islice (self.History, size):
-            table [0][1].append (word)
+            table [0][1].append ('{}...'.format (word [:22]) if len (word) > 25 else word)
             table [1][1].append (str (count))
 
         self.RenderTable (table)
@@ -263,6 +292,25 @@ options:
         if words:
             for word in words:
                 print (word [complete_size:].decode ('utf-8'))
+
+    def DumpAction (self, word, dcts):
+        """Dump content of the card
+        """
+        if len (dcts) > 1:
+            cards = {}
+            for dct in dcts:
+                card_word, card = dct.ByWord [word]
+                if card:
+                    cards [dct.Name] = card
+
+            sys.stdout.write (json.dumps (cards, indent = 2))
+            sys.stdout.write ('\n')
+
+        else:
+            card_word, card = dcts [0].ByWord [word]
+            if card:
+                sys.stdout.write (json.dumps (card, indent = 2))
+                sys.stdout.write ('\n')
 
     #--------------------------------------------------------------------------#
     # Render                                                                   #
