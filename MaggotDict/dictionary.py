@@ -7,6 +7,7 @@ import itertools
 
 from .sources import Source
 from .pretzel.store import FileStore
+from .pretzel.store.store.alloc import StoreBlock
 
 __all__ = ('Dictionary', 'DictionaryError',)
 #------------------------------------------------------------------------------#
@@ -111,7 +112,7 @@ class Dictionary (object):
                 card = card_load (card_desc)
                 card ['numbers'] = numbers
                 card_desc = card_save (card, card_desc)
-                data_size += (1 << store.desc_unpack (card_desc) [2])
+                data_size += StoreBlock.FromDesc (card_desc).size
 
                 # word index
                 for index, word in enumerate (card ['words']):
