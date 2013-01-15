@@ -282,7 +282,6 @@ class DSLSource (object):
                         if 'children' in child:
                             walk_hoist (child)
                     stack.pop ()
-
                 walk_hoist (root)
 
                 # merge adjoining folds
@@ -301,8 +300,7 @@ class DSLSource (object):
                                 if 'children' in child:
                                     walk_join (child)
                     node ['children'] = children
-
-                # walk_join (root)
+                walk_join (root)
 
                 #--------------------------------------------------------------#
                 # Yield                                                        #
