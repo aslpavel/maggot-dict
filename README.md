@@ -43,6 +43,11 @@ For Arch Linux users:
 # yaourt -S maggot-dict-git
 ```
 
+For Gentoo Linux users:
+```
+# layman -a stuff && eix-update && emerge maggot-dict
+```
+
 Usage:
 -----
 ```
